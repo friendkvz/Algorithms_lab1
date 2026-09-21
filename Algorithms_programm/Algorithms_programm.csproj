@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+      <Folder Include="Algorithms\Abstractions\" />
+      <Folder Include="Algorithms\CustomAlgorithms\" />
+      <Folder Include="Algorithms\MatrixOperations\" />
+      <Folder Include="Algorithms\PowerAlgorithms\" />
+      <Folder Include="Algorithms\VectorOperations\" />
+      <Folder Include="Approximation\" />
+      <Folder Include="Benchmarking\" />
+      <Folder Include="Caching\" />
+      <Folder Include="Database\Entities\" />
+      <Folder Include="Database\Migrations\" />
+      <Folder Include="Database\Repositories\" />
+      <Folder Include="DataGeneration\" />
+      <Folder Include="Models\" />
+      <Folder Include="Services\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.10" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.10">
+        <PrivateAssets>all</PrivateAssets>
+        <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      </PackageReference>
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.10" />
+    </ItemGroup>
+
+</Project>
