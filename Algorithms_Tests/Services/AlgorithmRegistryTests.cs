@@ -12,7 +12,7 @@ public class AlgorithmRegistryTests
     {
         // Векторные 1,2,3,4a,4b,5,6,7 (8 штук, т.к. 4 разбит на наивный/Горнер)
         // + 1 матричный (8) + 1 custom (HanSort, Часть III) + 3 степенных (10-12) = 13.
-        Assert.Equal(13, _registry.All.Count);
+        Assert.Equal(14, _registry.All.Count);
     }
 
     [Theory]
@@ -29,6 +29,7 @@ public class AlgorithmRegistryTests
     [InlineData("IterativePower")]
     [InlineData("RecursivePower")]
     [InlineData("FastPower")]
+    [InlineData("CycleSort")]
     public void Get_OnEveryKnownAlgorithmName_ReturnsRunner(string name)
     {
         var runner = _registry.Get(name);

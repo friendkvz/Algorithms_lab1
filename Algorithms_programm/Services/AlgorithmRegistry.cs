@@ -73,6 +73,10 @@ public sealed class AlgorithmRegistry
                 new HanSortAlgorithm(), AlgorithmCategory.Linear, 1_000_000,
                 (n, _) => integerVectorGenerator.Generate(n)),
 
+            new TimedAlgorithmRunner<double[], double[]>(
+                new CycleSortAlgorithm(), AlgorithmCategory.Quadratic, 25_000,
+                (n, _) => vectorGenerator.Generate(n)),
+
             // ---- Часть IV: возведение в степень (алгоритмы 10-12), измеряются шаги ----
             new StepCountingAlgorithmRunner<PowerInput, double>(
                 new IterativePowerAlgorithm(), 1000, n => RandomPowerInput(n)),
