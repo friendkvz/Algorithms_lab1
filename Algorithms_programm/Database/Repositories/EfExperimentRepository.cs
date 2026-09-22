@@ -1,6 +1,7 @@
 using Algorithms_programm.Database.Entities;
 using Microsoft.EntityFrameworkCore;
 
+
 namespace Algorithms_programm.Database.Repositories;
 
 /// <summary>
@@ -59,16 +60,25 @@ public sealed class EfExperimentRepository : IExperimentRepository
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-        var algorithm = await context.Algorithms.FirstOrDefaultAsync(a => a.Name == algorithmName, ct);
+        var algorithm = await context.Algorithms
+            .SingleOrDefaultAsync(a => a.Name == algorithmName, ct);
+
         if (algorithm is null)
         {
-            algorithm = new AlgorithmEntity { Name = algorithmName };
+            algorithm = new AlgorithmEntity
+            {
+                Name = algorithmName
+            };
+
             context.Algorithms.Add(algorithm);
+
+            // Сначала сохраняем алгоритм, чтобы его PK точно существовал.
+            await context.SaveChangesAsync(ct);
         }
 
         var session = new ExperimentSessionEntity
         {
-            Algorithm = algorithm,
+            AlgorithmId = algorithm.Id,
             CreatedAt = DateTime.UtcNow,
             NMax = nMax,
             Step = step,
@@ -76,18 +86,70 @@ public sealed class EfExperimentRepository : IExperimentRepository
             MMax = mMax,
             MStep = mStep,
             ConfigHash = configHash,
-            Label = label,
+            Label = label
         };
 
         context.ExperimentSessions.Add(session);
         await context.SaveChangesAsync(ct);
+        
+        if (session.Id <= 0)
+        {
+            throw new InvalidOperationException(
+                "SQLite не сгенерировал корректный идентификатор сессии.");
+        }
+
         return session;
     }
 
-    public async Task AddRunsAsync(IEnumerable<ExperimentRunEntity> runs, CancellationToken ct = default)
+    public async Task AddRunsAsync(
+        IEnumerable<ExperimentRunEntity> runs,
+        CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
-        context.ExperimentRuns.AddRange(runs);
+
+        var sourceRuns = runs.ToList();
+
+        if (sourceRuns.Count == 0)
+        {
+            return;
+        }
+
+        var sessionIds = sourceRuns
+            .Select(run => run.SessionId)
+            .Distinct()
+            .ToArray();
+
+        if (sessionIds.Length != 1)
+        {
+            throw new InvalidOperationException(
+                "Одна операция сохранения должна содержать замеры только одной сессии.");
+        }
+
+        var sessionId = sessionIds[0];
+
+        var session = await context.ExperimentSessions
+            .SingleOrDefaultAsync(s => s.Id == sessionId, ct);
+
+        if (session is null)
+        {
+            throw new InvalidOperationException(
+                $"Сессия эксперимента с ID {sessionId} не найдена.");
+        }
+
+        var entities = sourceRuns
+            .Select(run => new ExperimentRunEntity
+            {
+                Session = session,
+                N = run.N,
+                M = run.M,
+                RunIndex = run.RunIndex,
+                ElapsedMilliseconds = run.ElapsedMilliseconds,
+                StepCount = run.StepCount,
+                MeasuredAt = run.MeasuredAt
+            })
+            .ToList();
+
+        context.ExperimentRuns.AddRange(entities);
         await context.SaveChangesAsync(ct);
     }
 

@@ -17,34 +17,60 @@ public class AppDbContext : DbContext
     {
         modelBuilder.Entity<AlgorithmEntity>(entity =>
         {
-            entity.Property(a => a.Name).IsRequired().HasMaxLength(200);
-            entity.HasIndex(a => a.Name).IsUnique();
+            entity.HasKey(a => a.Id);
+
+            entity.Property(a => a.Id)
+                .ValueGeneratedOnAdd();
+
+            entity.Property(a => a.Name)
+                .IsRequired()
+                .HasMaxLength(200);
+
+            entity.HasIndex(a => a.Name)
+                .IsUnique();
         });
 
         modelBuilder.Entity<ExperimentSessionEntity>(entity =>
         {
-            entity.Property(s => s.ConfigHash).IsRequired().HasMaxLength(128);
+            entity.HasKey(s => s.Id);
+
+            entity.Property(s => s.Id)
+                .ValueGeneratedOnAdd();
+
+            entity.Property(s => s.ConfigHash)
+                .IsRequired()
+                .HasMaxLength(128);
 
             entity.HasOne(s => s.Algorithm)
                 .WithMany(a => a.Sessions)
                 .HasForeignKey(s => s.AlgorithmId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Ускоряет поиск "есть ли уже сессия с такой конфигурацией у этого алгоритма" —
-            // ключевой запрос для DbBackedCacheService.
-            entity.HasIndex(s => new { s.AlgorithmId, s.ConfigHash });
+            entity.HasIndex(s => new
+            {
+                s.AlgorithmId,
+                s.ConfigHash
+            });
         });
 
         modelBuilder.Entity<ExperimentRunEntity>(entity =>
         {
+            entity.HasKey(r => r.Id);
+
+            entity.Property(r => r.Id)
+                .ValueGeneratedOnAdd();
+
             entity.HasOne(r => r.Session)
                 .WithMany(s => s.Runs)
                 .HasForeignKey(r => r.SessionId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Ускоряет выборку "все запуски для точки (n, m) в этой сессии" — основной запрос
-            // и для кэша, и для построения графика эмпирических точек.
-            entity.HasIndex(r => new { r.SessionId, r.N, r.M });
+            entity.HasIndex(r => new
+            {
+                r.SessionId,
+                r.N,
+                r.M
+            });
         });
     }
 }

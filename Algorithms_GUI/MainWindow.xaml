@@ -2,32 +2,127 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:oxy="http://oxyplot.org/wpf"
-        Title="Анализ сложности алгоритмов" Height="780" Width="1250" MinWidth="900" MinHeight="600">
+        Title="Анализ сложности алгоритмов"
+        Width="1280"
+        Height="800"
+        MinWidth="950"
+        MinHeight="600">
+
     <Grid Margin="12">
-        <Grid.ColumnDefinitions><ColumnDefinition Width="300"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-        <Grid.RowDefinitions><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
-        <ScrollViewer Grid.Column="0" VerticalScrollBarVisibility="Auto">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="310" />
+            <ColumnDefinition Width="*" />
+        </Grid.ColumnDefinitions>
+
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <ScrollViewer Grid.Row="0"
+                      Grid.Column="0"
+                      VerticalScrollBarVisibility="Auto">
+
             <StackPanel Margin="0,0,12,0">
-                <TextBlock Text="Алгоритм" FontWeight="Bold"/><ComboBox ItemsSource="{Binding Algorithms}" SelectedItem="{Binding SelectedAlgorithm}" DisplayMemberPath="Name" Margin="0,4,0,12"/>
-                <TextBlock Text="N max"/><TextBox Text="{Binding NMax, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,8"/>
-                <TextBlock Text="Шаг"/><TextBox Text="{Binding Step, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,8"/>
-                <TextBlock Text="Запусков на точку"/><TextBox Text="{Binding Runs, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,8"/>
-                <TextBlock Text="M max (матрицы)"/><TextBox Text="{Binding MMax, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,8"/>
-                <TextBlock Text="Шаг M"/><TextBox Text="{Binding MStep, UpdateSourceTrigger=PropertyChanged}" Margin="0,4,0,8"/>
-                <CheckBox Content="Принудительный пересчёт" IsChecked="{Binding ForceRecalculate}" Margin="0,4,0,12"/>
-                <Button Content="Запустить эксперимент" Command="{Binding RunCommand}" Height="32" Margin="0,2"/>
-                <Button Content="Отменить" Command="{Binding CancelCommand}" Height="30" Margin="0,2"/>
-                <Separator Margin="0,12"/>
-                <Button Content="Загрузить исторические сессии" Command="{Binding LoadSessionsCommand}" Height="30" Margin="0,2"/>
-                <Button Content="Сравнить загруженные сессии" Command="{Binding CompareCommand}" Height="30" Margin="0,2"/>
-                <TextBlock Text="Сессии" FontWeight="Bold" Margin="0,12,0,4"/><ListBox ItemsSource="{Binding Sessions}" DisplayMemberPath="DisplayName" Height="180"/>
-                <ItemsControl ItemsSource="{Binding Approximations}" Margin="0,12,0,0"><ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding DisplayFormula}" ToolTip="{Binding Mse}" Margin="0,2"/></DataTemplate></ItemsControl.ItemTemplate></ItemsControl>
+                <TextBlock Text="Алгоритм"
+                           FontWeight="Bold" />
+
+                <ComboBox Margin="0,5,0,12"
+                          ItemsSource="{Binding Algorithms}"
+                          SelectedItem="{Binding SelectedAlgorithm}"
+                          DisplayMemberPath="Name" />
+
+                <TextBlock Text="N max" />
+                <TextBox Margin="0,4,0,10"
+                         Text="{Binding NMax, UpdateSourceTrigger=PropertyChanged}" />
+
+                <TextBlock Text="Шаг по n" />
+                <TextBox Margin="0,4,0,10"
+                         Text="{Binding Step, UpdateSourceTrigger=PropertyChanged}" />
+
+                <TextBlock Text="Запусков на точку" />
+                <TextBox Margin="0,4,0,10"
+                         Text="{Binding Runs, UpdateSourceTrigger=PropertyChanged}" />
+
+                <TextBlock Text="M max для матриц" />
+                <TextBox Margin="0,4,0,10"
+                         Text="{Binding MMax, UpdateSourceTrigger=PropertyChanged}" />
+
+                <TextBlock Text="Шаг по m" />
+                <TextBox Margin="0,4,0,10"
+                         Text="{Binding MStep, UpdateSourceTrigger=PropertyChanged}" />
+
+                <CheckBox Margin="0,4,0,12"
+                          Content="Принудительный пересчёт"
+                          IsChecked="{Binding ForceRecalculate}" />
+
+                <Button Height="32"
+                        Margin="0,2"
+                        Content="Запустить эксперимент"
+                        Command="{Binding RunCommand}" />
+
+                <Button Height="30"
+                        Margin="0,2"
+                        Content="Отменить"
+                        Command="{Binding CancelCommand}" />
+
+                <Separator Margin="0,14" />
+
+                <Button Height="30"
+                        Margin="0,2"
+                        Content="Загрузить исторические сессии"
+                        Command="{Binding LoadSessionsCommand}" />
+
+                <Button Height="30"
+                        Margin="0,2"
+                        Content="Сравнить сессии"
+                        Command="{Binding CompareCommand}" />
+
+                <TextBlock Margin="0,14,0,4"
+                           Text="Исторические сессии"
+                           FontWeight="Bold" />
+
+                <ListBox Height="180"
+                         ItemsSource="{Binding Sessions}"
+                         DisplayMemberPath="DisplayName" />
+
+                <TextBlock Margin="0,14,0,4"
+                           Text="Аппроксимации"
+                           FontWeight="Bold" />
+
+                <ItemsControl ItemsSource="{Binding Approximations}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <TextBox Text="{Binding DisplayFormula}" />
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </StackPanel>
         </ScrollViewer>
-        <oxy:PlotView Grid.Column="1" Model="{Binding Plot}"/>
-        <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,8,0,0">
-            <ProgressBar Width="300" Height="18" Minimum="0" Maximum="100" Value="{Binding Progress}"/>
-            <TextBlock Text="{Binding Status}" Margin="12,0,0,0" VerticalAlignment="Center"/>
-        </StackPanel>
+
+        <oxy:PlotView Grid.Row="0"
+                      Grid.Column="1"
+                      Model="{Binding Plot}" />
+
+        <Grid Grid.Row="1"
+              Grid.ColumnSpan="2"
+              Margin="0,10,0,0">
+
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="300" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <ProgressBar Grid.Column="0"
+                         Height="18"
+                         Minimum="0"
+                         Maximum="100"
+                         Value="{Binding Progress}" />
+
+            <TextBlock Grid.Column="1"
+                       Margin="12,0,0,0"
+                       VerticalAlignment="Center"
+                       Text="{Binding Status}" />
+        </Grid>
     </Grid>
 </Window>

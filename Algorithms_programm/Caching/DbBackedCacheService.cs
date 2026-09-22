@@ -72,13 +72,26 @@ public sealed class DbBackedCacheService : ICacheService
         return runs.Count >= requiredRuns;
     }
 
-    public Task SaveRunsAsync(int sessionId, IEnumerable<ExperimentRunEntity> runs, CancellationToken ct = default)
+    public async Task SaveRunsAsync(
+        int sessionId,
+        IEnumerable<ExperimentRunEntity> runs,
+        CancellationToken ct = default)
     {
-        foreach (var run in runs)
+        if (sessionId <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(sessionId),
+                sessionId,
+                "Идентификатор сессии должен быть положительным.");
+        }
+
+        var runList = runs.ToList();
+
+        foreach (var run in runList)
         {
             run.SessionId = sessionId;
         }
 
-        return _repository.AddRunsAsync(runs, ct);
+        await _repository.AddRunsAsync(runList, ct);
     }
 }

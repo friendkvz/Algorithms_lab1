@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using Algorithms_programm.Caching;
 using Algorithms_programm.Database;
@@ -10,29 +11,59 @@ namespace Algorithms_GUI;
 
 public partial class App : Application
 {
-    public IServiceProvider Services { get; }
+    public IServiceProvider ServiceProvider { get; }
 
     public App()
     {
         var services = new ServiceCollection();
-        services.AddDbContextFactory<Algorithms_programm.Database.AppDbContext>(options =>
-            options.UseSqlite(DbPathResolver.GetConnectionString()));
+
+        services.AddDbContextFactory<Algorithms_programm.Database.AppDbContext>(
+            options => options.UseSqlite(DbPathResolver.GetConnectionString()));
+
         services.AddSingleton<IExperimentRepository, EfExperimentRepository>();
         services.AddSingleton<ICacheService, DbBackedCacheService>();
         services.AddSingleton<AlgorithmRegistry>();
         services.AddSingleton<ExperimentOrchestrator>();
         services.AddSingleton<ComparisonService>();
-        services.AddSingleton<MainWindowViewModel>();
-        Services = services.BuildServiceProvider();
+        services.AddTransient<MainWindowViewModel>();
 
-        using var scope = Services.CreateScope();
-        scope.ServiceProvider.GetRequiredService<IDbContextFactory<Algorithms_programm.Database.AppDbContext>>()
-            .CreateDbContext().Database.Migrate();
+        ServiceProvider = services.BuildServiceProvider();
+
+        ApplyMigrations();
+    }
+
+    private void ApplyMigrations()
+    {
+        using var scope = ServiceProvider.CreateScope();
+
+        var factory =
+            scope.ServiceProvider
+                .GetRequiredService<IDbContextFactory<Algorithms_programm.Database.AppDbContext>>();
+
+        using var context = factory.CreateDbContext();
+        context.Database.Migrate();
     }
 
     protected override void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
-        new MainWindow { DataContext = Services.GetRequiredService<MainWindowViewModel>() }.Show();
+
+        var mainWindow = new MainWindow
+        {
+            DataContext = ServiceProvider.GetRequiredService<MainWindowViewModel>()
+        };
+
+        MainWindow = mainWindow;
+        mainWindow.Show();
+    }
+
+    protected override void OnExit(ExitEventArgs e)
+    {
+        if (ServiceProvider is IDisposable disposable)
+        {
+            disposable.Dispose();
+        }
+
+        base.OnExit(e);
     }
 }
