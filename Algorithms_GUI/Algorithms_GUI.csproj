@@ -1,27 +1,19 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
-
+<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
         <OutputType>WinExe</OutputType>
         <TargetFramework>net10.0-windows</TargetFramework>
         <Nullable>enable</Nullable>
         <ImplicitUsings>enable</ImplicitUsings>
         <UseWPF>true</UseWPF>
+        <EnableWindowsTargeting>true</EnableWindowsTargeting>
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Algorithms_programm\Algorithms_programm.csproj" />
+        <ProjectReference Include="..\Algorithms_programm\Algorithms_programm.csproj" />
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Controls\" />
-      <Folder Include="Resources\" />
-      <Folder Include="Services\" />
-      <Folder Include="ViewModels\" />
-      <Folder Include="Views\" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
+        <PackageReference Include="OxyPlot.Wpf" Version="2.2.0" />
     </ItemGroup>
-
-    <ItemGroup>
-      <PackageReference Include="OxyPlot.Wpf" Version="2.2.0" />
-    </ItemGroup>
-
 </Project>
