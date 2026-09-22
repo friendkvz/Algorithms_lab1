@@ -4,8 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Algorithms_programm.Database.Repositories;
 
 /// <summary>
-/// Реализация репозитория поверх EF Core. Каждый вызов использует отдельный короткоживущий
-/// DbContext, поэтому репозиторий безопасен для асинхронного запуска экспериментов.
+/// EF Core repository for experiment data.
 /// </summary>
 public sealed class EfExperimentRepository : IExperimentRepository
 {
@@ -63,9 +62,6 @@ public sealed class EfExperimentRepository : IExperimentRepository
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-        // Сначала гарантированно сохраняем AlgorithmEntity и получаем его реальный PK.
-        // Это важно для SQLite in-memory: перед добавлением ExperimentRunEntity внешний
-        // ключ SessionId должен ссылаться на уже сохранённую цепочку Algorithm -> Session.
         var algorithm = await context.Algorithms
             .SingleOrDefaultAsync(a => a.Name == algorithmName, ct);
 
@@ -74,6 +70,12 @@ public sealed class EfExperimentRepository : IExperimentRepository
             algorithm = new AlgorithmEntity { Name = algorithmName };
             context.Algorithms.Add(algorithm);
             await context.SaveChangesAsync(ct);
+        }
+
+        if (algorithm.Id <= 0)
+        {
+            throw new InvalidOperationException(
+                $"Не удалось получить идентификатор алгоритма '{algorithmName}'.");
         }
 
         var session = new ExperimentSessionEntity
@@ -91,7 +93,21 @@ public sealed class EfExperimentRepository : IExperimentRepository
 
         context.ExperimentSessions.Add(session);
         await context.SaveChangesAsync(ct);
-        return session;
+
+        // Явно перечитываем строку из БД. Это гарантирует, что возвращаемый DTO
+        // содержит сгенерированный SQLite ключ, а не значение Id по умолчанию (0).
+        var savedSession = await context.ExperimentSessions
+            .AsNoTracking()
+            .Include(s => s.Algorithm)
+            .SingleAsync(s => s.Id == session.Id, ct);
+
+        if (savedSession.Id <= 0)
+        {
+            throw new InvalidOperationException(
+                $"SQLite не вернул корректный идентификатор созданной сессии '{algorithmName}'.");
+        }
+
+        return savedSession;
     }
 
     public async Task AddRunsAsync(
@@ -99,27 +115,47 @@ public sealed class EfExperimentRepository : IExperimentRepository
         CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
-        var runList = runs.ToList();
+        var sourceRuns = runs.ToList();
 
-        if (runList.Count == 0)
+        if (sourceRuns.Count == 0)
         {
             return;
         }
 
-        var sessionIds = runList.Select(r => r.SessionId).Distinct().ToArray();
-        var existingSessionIds = await context.ExperimentSessions
-            .Where(s => sessionIds.Contains(s.Id))
-            .Select(s => s.Id)
-            .ToListAsync(ct);
+        var sessionIds = sourceRuns
+            .Select(r => r.SessionId)
+            .Distinct()
+            .ToArray();
 
-        var missingSessionId = sessionIds.FirstOrDefault(id => !existingSessionIds.Contains(id));
-        if (missingSessionId != 0)
+        if (sessionIds.Length != 1 || sessionIds[0] <= 0)
         {
             throw new InvalidOperationException(
-                $"Невозможно сохранить замеры: сессия эксперимента {missingSessionId} не найдена.");
+                $"Некорректный идентификатор сессии: {string.Join(", ", sessionIds)}.");
         }
 
-        context.ExperimentRuns.AddRange(runList);
+        var sessionId = sessionIds[0];
+        var session = await context.ExperimentSessions
+            .SingleOrDefaultAsync(s => s.Id == sessionId, ct);
+
+        if (session is null)
+        {
+            throw new InvalidOperationException(
+                $"Сессия эксперимента с ID {sessionId} не найдена.");
+        }
+
+        var entities = sourceRuns.Select(run => new ExperimentRunEntity
+        {
+            SessionId = session.Id,
+            Session = session,
+            N = run.N,
+            M = run.M,
+            RunIndex = run.RunIndex,
+            ElapsedMilliseconds = run.ElapsedMilliseconds,
+            StepCount = run.StepCount,
+            MeasuredAt = run.MeasuredAt,
+        }).ToList();
+
+        context.ExperimentRuns.AddRange(entities);
         await context.SaveChangesAsync(ct);
     }
 
