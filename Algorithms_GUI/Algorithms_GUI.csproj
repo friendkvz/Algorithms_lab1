@@ -14,6 +14,8 @@
     </ItemGroup>
 
     <ItemGroup>
+        <PackageReference Include="HelixToolkit.Wpf" Version="3.1.2" />
+        <PackageReference Include="HelixToolkit.Wpf.SharpDX" Version="3.1.2" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
         <PackageReference Include="OxyPlot.Wpf" Version="2.2.0" />
     </ItemGroup>

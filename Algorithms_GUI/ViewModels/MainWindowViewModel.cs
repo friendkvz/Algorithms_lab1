@@ -21,6 +21,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private CancellationTokenSource? _cancellationTokenSource;
     private IAlgorithmRunner? _selectedAlgorithm;
 
+    private bool _isMatrixAlgorithm;
     private int _nMax;
     private int _step = 100;
     private int _mMax = 100;
@@ -32,6 +33,7 @@ public sealed class MainWindowViewModel : ViewModelBase
     private double _progress;
     private string _status = "Готово";
     private PlotModel? _plot;
+    private MatrixExperimentResultDto? _matrixResult;
 
     public MainWindowViewModel(
         AlgorithmRegistry registry,
@@ -80,6 +82,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             }
 
             NMax = value.DefaultNMax;
+            IsMatrixAlgorithm = value.IsMatrix;
             Approximations.Clear();
             Sessions.Clear();
             Plot = null;
@@ -151,13 +154,24 @@ public sealed class MainWindowViewModel : ViewModelBase
     public string Status
     {
         get => _status;
-        private set => Set(ref _status, value);
+        set => Set(ref _status, value);
+    }
+    public bool IsMatrixAlgorithm
+    {
+        get => _isMatrixAlgorithm;
+        private set => Set(ref _isMatrixAlgorithm, value);
     }
 
     public PlotModel? Plot
     {
         get => _plot;
         private set => Set(ref _plot, value);
+    }
+    
+    public MatrixExperimentResultDto? MatrixResult
+    {
+        get => _matrixResult;
+        private set => Set(ref _matrixResult, value);
     }
 
     public AsyncCommand RunCommand { get; }
@@ -242,7 +256,8 @@ public sealed class MainWindowViewModel : ViewModelBase
                         _cancellationTokenSource.Token);
 
                 Approximations.Clear();
-                Plot = BuildMatrixPlot(matrixResult);
+                MatrixResult = matrixResult;
+                Plot = null;
             }
             else
             {
