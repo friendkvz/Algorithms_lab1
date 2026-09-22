@@ -8,7 +8,6 @@
 
     <ItemGroup>
       <Folder Include="Algorithms\Abstractions\" />
-      <Folder Include="Algorithms\CustomAlgorithms\" />
       <Folder Include="Algorithms\MatrixOperations\" />
       <Folder Include="Algorithms\PowerAlgorithms\" />
       <Folder Include="Algorithms\VectorOperations\" />
