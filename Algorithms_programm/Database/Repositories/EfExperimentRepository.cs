@@ -4,10 +4,8 @@ using Microsoft.EntityFrameworkCore;
 namespace Algorithms_programm.Database.Repositories;
 
 /// <summary>
-/// Реализация поверх EF Core. Использует IDbContextFactory&lt;AppDbContext&gt;, а не единый
-/// внедрённый AppDbContext: бенчмарки выполняются асинхронно и потенциально параллельно
-/// (несколько точек n), а DbContext не потокобезопасен и не рассчитан на переиспользование
-/// между конкурентными операциями. Каждый метод открывает короткоживущий контекст.
+/// Реализация репозитория поверх EF Core. Каждый вызов использует отдельный короткоживущий
+/// DbContext, поэтому репозиторий безопасен для асинхронного запуска экспериментов.
 /// </summary>
 public sealed class EfExperimentRepository : IExperimentRepository
 {
@@ -18,24 +16,30 @@ public sealed class EfExperimentRepository : IExperimentRepository
         _contextFactory = contextFactory;
     }
 
-    public async Task<AlgorithmEntity> GetOrCreateAlgorithmAsync(string algorithmName, CancellationToken ct = default)
+    public async Task<AlgorithmEntity> GetOrCreateAlgorithmAsync(
+        string algorithmName,
+        CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-        var existing = await context.Algorithms.FirstOrDefaultAsync(a => a.Name == algorithmName, ct);
-        if (existing is not null)
+        var algorithm = await context.Algorithms
+            .SingleOrDefaultAsync(a => a.Name == algorithmName, ct);
+
+        if (algorithm is not null)
         {
-            return existing;
+            return algorithm;
         }
 
-        var created = new AlgorithmEntity { Name = algorithmName };
-        context.Algorithms.Add(created);
+        algorithm = new AlgorithmEntity { Name = algorithmName };
+        context.Algorithms.Add(algorithm);
         await context.SaveChangesAsync(ct);
-        return created;
+        return algorithm;
     }
 
     public async Task<ExperimentSessionEntity?> FindSessionByConfigAsync(
-        string algorithmName, string configHash, CancellationToken ct = default)
+        string algorithmName,
+        string configHash,
+        CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
@@ -59,16 +63,22 @@ public sealed class EfExperimentRepository : IExperimentRepository
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-        var algorithm = await context.Algorithms.FirstOrDefaultAsync(a => a.Name == algorithmName, ct);
+        // Сначала гарантированно сохраняем AlgorithmEntity и получаем его реальный PK.
+        // Это важно для SQLite in-memory: перед добавлением ExperimentRunEntity внешний
+        // ключ SessionId должен ссылаться на уже сохранённую цепочку Algorithm -> Session.
+        var algorithm = await context.Algorithms
+            .SingleOrDefaultAsync(a => a.Name == algorithmName, ct);
+
         if (algorithm is null)
         {
             algorithm = new AlgorithmEntity { Name = algorithmName };
             context.Algorithms.Add(algorithm);
+            await context.SaveChangesAsync(ct);
         }
 
         var session = new ExperimentSessionEntity
         {
-            Algorithm = algorithm,
+            AlgorithmId = algorithm.Id,
             CreatedAt = DateTime.UtcNow,
             NMax = nMax,
             Step = step,
@@ -84,15 +94,40 @@ public sealed class EfExperimentRepository : IExperimentRepository
         return session;
     }
 
-    public async Task AddRunsAsync(IEnumerable<ExperimentRunEntity> runs, CancellationToken ct = default)
+    public async Task AddRunsAsync(
+        IEnumerable<ExperimentRunEntity> runs,
+        CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
-        context.ExperimentRuns.AddRange(runs);
+        var runList = runs.ToList();
+
+        if (runList.Count == 0)
+        {
+            return;
+        }
+
+        var sessionIds = runList.Select(r => r.SessionId).Distinct().ToArray();
+        var existingSessionIds = await context.ExperimentSessions
+            .Where(s => sessionIds.Contains(s.Id))
+            .Select(s => s.Id)
+            .ToListAsync(ct);
+
+        var missingSessionId = sessionIds.FirstOrDefault(id => !existingSessionIds.Contains(id));
+        if (missingSessionId != 0)
+        {
+            throw new InvalidOperationException(
+                $"Невозможно сохранить замеры: сессия эксперимента {missingSessionId} не найдена.");
+        }
+
+        context.ExperimentRuns.AddRange(runList);
         await context.SaveChangesAsync(ct);
     }
 
     public async Task<List<ExperimentRunEntity>> GetRunsAsync(
-        int sessionId, int n, int? m = null, CancellationToken ct = default)
+        int sessionId,
+        int n,
+        int? m = null,
+        CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
@@ -101,18 +136,23 @@ public sealed class EfExperimentRepository : IExperimentRepository
             .ToListAsync(ct);
     }
 
-    public async Task<List<ExperimentRunEntity>> GetAllRunsForSessionAsync(int sessionId, CancellationToken ct = default)
+    public async Task<List<ExperimentRunEntity>> GetAllRunsForSessionAsync(
+        int sessionId,
+        CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
         return await context.ExperimentRuns
             .Where(r => r.SessionId == sessionId)
-            .OrderBy(r => r.N).ThenBy(r => r.M).ThenBy(r => r.RunIndex)
+            .OrderBy(r => r.N)
+            .ThenBy(r => r.M)
+            .ThenBy(r => r.RunIndex)
             .ToListAsync(ct);
     }
 
     public async Task<List<ExperimentSessionEntity>> GetSessionsForAlgorithmAsync(
-        string algorithmName, CancellationToken ct = default)
+        string algorithmName,
+        CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
@@ -123,14 +163,18 @@ public sealed class EfExperimentRepository : IExperimentRepository
             .ToListAsync(ct);
     }
 
-    public async Task DeleteSessionAsync(int sessionId, CancellationToken ct = default)
+    public async Task DeleteSessionAsync(
+        int sessionId,
+        CancellationToken ct = default)
     {
         await using var context = await _contextFactory.CreateDbContextAsync(ct);
 
-        var session = await context.ExperimentSessions.FirstOrDefaultAsync(s => s.Id == sessionId, ct);
+        var session = await context.ExperimentSessions
+            .FirstOrDefaultAsync(s => s.Id == sessionId, ct);
+
         if (session is not null)
         {
-            context.ExperimentSessions.Remove(session); // каскад удалит связанные ExperimentRunEntity
+            context.ExperimentSessions.Remove(session);
             await context.SaveChangesAsync(ct);
         }
     }
