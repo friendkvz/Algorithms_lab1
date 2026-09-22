@@ -10,6 +10,7 @@ using OxyPlot;
 using OxyPlot.Axes;
 using OxyPlot.Series;
 using OxyDataPoint = OxyPlot.DataPoint;
+using System.Diagnostics;
 
 namespace Algorithms_GUI;
 
@@ -34,6 +35,10 @@ public sealed class MainWindowViewModel : ViewModelBase
     private string _status = "Готово";
     private PlotModel? _plot;
     private MatrixExperimentResultDto? _matrixResult;
+    
+    private Stopwatch? _experimentStopwatch;
+    private string _estimatedTimeText = "Осталось примерно: —";
+    private string _totalTimeText = "Общее время: —";
 
     public MainWindowViewModel(
         AlgorithmRegistry registry,
@@ -90,6 +95,17 @@ public sealed class MainWindowViewModel : ViewModelBase
             RunCommand.RaiseCanExecuteChanged();
             LoadSessionsCommand.RaiseCanExecuteChanged();
         }
+    }
+    public string EstimatedTimeText
+    {
+        get => _estimatedTimeText;
+        private set => Set(ref _estimatedTimeText, value);
+    }
+
+    public string TotalTimeText
+    {
+        get => _totalTimeText;
+        private set => Set(ref _totalTimeText, value);
     }
 
     public int NMax
@@ -235,11 +251,13 @@ public sealed class MainWindowViewModel : ViewModelBase
             IsBusy = true;
             Progress = 0;
             Status = "Выполнение эксперимента...";
+            EstimatedTimeText = "Осталось примерно: рассчитывается...";
+            TotalTimeText = "Общее время: —";
 
+            _experimentStopwatch = Stopwatch.StartNew();
             _cancellationTokenSource = new CancellationTokenSource();
 
-            var progress = new Progress<double>(
-                value => Progress = Math.Clamp(value * 100.0, 0.0, 100.0));
+            var progress = new Progress<double>(ReportProgress);
 
             if (SelectedAlgorithm!.IsMatrix)
             {
@@ -281,15 +299,35 @@ public sealed class MainWindowViewModel : ViewModelBase
                 Plot = BuildExperimentPlot(result);
             }
 
+            _experimentStopwatch?.Stop();
+
             Progress = 100;
+            EstimatedTimeText = "Осталось примерно: 0 с";
+            TotalTimeText = _experimentStopwatch is null
+                ? "Общее время: —"
+                : $"Общее время: {FormatDuration(_experimentStopwatch.Elapsed)}";
+
             Status = "Эксперимент завершён.";
         }
         catch (OperationCanceledException)
         {
+            _experimentStopwatch?.Stop();
+
+            EstimatedTimeText = "Осталось примерно: отменено";
+            TotalTimeText = _experimentStopwatch is null
+                ? "Общее время: —"
+                : $"Время до отмены: {FormatDuration(_experimentStopwatch.Elapsed)}";
+
             Status = "Эксперимент отменён.";
         }
         catch (Exception exception)
         {
+            _experimentStopwatch?.Stop();
+
+            TotalTimeText = _experimentStopwatch is null
+                ? "Общее время: —"
+                : $"Время до ошибки: {FormatDuration(_experimentStopwatch.Elapsed)}";
+
             Status = $"Ошибка: {exception.Message}";
         }
         finally
@@ -297,6 +335,7 @@ public sealed class MainWindowViewModel : ViewModelBase
             IsBusy = false;
             _cancellationTokenSource?.Dispose();
             _cancellationTokenSource = null;
+            _experimentStopwatch = null;
         }
     }
 
@@ -541,5 +580,55 @@ public sealed class MainWindowViewModel : ViewModelBase
         {
             IsBusy = false;
         }
+    }
+    
+    private void ReportProgress(double progress)
+    {
+        var fraction = Math.Clamp(progress, 0.0, 1.0);
+        Progress = fraction * 100.0;
+
+        if (_experimentStopwatch is not { IsRunning: true } ||
+            fraction <= 0.001)
+        {
+            return;
+        }
+
+        var elapsed = _experimentStopwatch.Elapsed;
+
+        var estimatedTotalTicks =
+            (long)(elapsed.Ticks / fraction);
+
+        var estimatedTotal =
+            TimeSpan.FromTicks(estimatedTotalTicks);
+
+        var remaining = estimatedTotal - elapsed;
+
+        if (remaining < TimeSpan.Zero)
+        {
+            remaining = TimeSpan.Zero;
+        }
+
+        EstimatedTimeText =
+            $"Осталось примерно: {FormatDuration(remaining)}";
+
+        Status =
+            $"Выполнение эксперимента... {Progress:F1}%";
+    }
+
+    private static string FormatDuration(TimeSpan duration)
+    {
+        if (duration.TotalHours >= 1)
+        {
+            return duration.ToString(@"hh\:mm\:ss");
+        }
+
+        if (duration.TotalMinutes >= 1)
+        {
+            return duration.ToString(@"mm\:ss");
+        }
+
+        return duration.TotalSeconds < 10
+            ? $"{duration.TotalSeconds:F1} с"
+            : $"{Math.Round(duration.TotalSeconds):F0} с";
     }
 }
