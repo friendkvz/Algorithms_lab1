@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Windows.Input;
+using System.Windows;
 
 namespace Algorithms_GUI;
 
@@ -69,6 +70,19 @@ public sealed class AsyncCommand : ICommand
         try
         {
             await _execute();
+        }
+        catch (OperationCanceledException)
+        {
+            // Отмена является штатным сценарием.
+        }
+        catch (Exception exception)
+        {
+            // Исключение из async void не должно завершать WPF-приложение.
+            MessageBox.Show(
+                exception.ToString(),
+                "Ошибка выполнения эксперимента",
+                MessageBoxButton.OK,
+                MessageBoxImage.Error);
         }
         finally
         {

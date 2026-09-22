@@ -93,7 +93,17 @@
                 <ItemsControl ItemsSource="{Binding Approximations}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
-                            <TextBox Text="{Binding DisplayFormula}" />
+                            <Border Margin="0,2"
+                                    Padding="4"
+                                    BorderBrush="LightGray"
+                                    BorderThickness="0,0,0,1">
+                                <StackPanel>
+                                    <TextBlock Text="{Binding DisplayFormula, Mode=OneWay}" />
+                                    <TextBlock FontSize="11"
+                                               Foreground="Gray"
+                                               Text="{Binding Mse, StringFormat=MSE: {0:G6}, Mode=OneWay}" />
+                                </StackPanel>
+                            </Border>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
@@ -102,7 +112,7 @@
 
         <oxy:PlotView Grid.Row="0"
                       Grid.Column="1"
-                      Model="{Binding Plot}" />
+                      Model="{Binding Plot, Mode=OneWay}" />
 
         <Grid Grid.Row="1"
               Grid.ColumnSpan="2"
@@ -117,7 +127,7 @@
                          Height="18"
                          Minimum="0"
                          Maximum="100"
-                         Value="{Binding Progress}" />
+                         Value="{Binding Progress, Mode=OneWay}" />
 
             <TextBlock Grid.Column="1"
                        Margin="12,0,0,0"
