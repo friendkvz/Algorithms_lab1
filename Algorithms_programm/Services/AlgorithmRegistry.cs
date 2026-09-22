@@ -8,15 +8,7 @@ namespace Algorithms_programm.Services;
 
 /// <summary>
 /// Реестр всех алгоритмов методички: связывает каждый алгоритм с его категорией сложности,
-/// дефолтным N_max ("не хардкодить N_max... дефолтные значения задавать константами по
-/// категориям сложности, но всегда давать пользователю их переопределить в GUI") и генератором
-/// входных данных. GUI берёт список Name/Category/DefaultNMax отсюда для выпадающего списка,
-/// пользователь может переопределить N_max — сам реестр этого не хранит, это уже параметр
-/// конкретного запуска (ExperimentConfig).
-///
-/// Дефолты N_max подобраны по правилу методички: при n = N_max время должно быть 5–10 сек и не
-/// микросекунды. Это ориентировочные величины для типичного ПК — пользователь может (и должен
-/// при необходимости) скорректировать их в GUI под свою машину.
+/// дефолтным N_max (пользователь может переопределить его в GUI) и генератором входных данных.
 /// </summary>
 public sealed class AlgorithmRegistry
 {
@@ -65,16 +57,16 @@ public sealed class AlgorithmRegistry
                 (n, _) => vectorGenerator.Generate(n)),
 
             // ---- Часть II: матрицы (алгоритм 8) ----
-            new TimedAlgorithmRunner<MatrixPair, double[,]>(
+            new TimedAlgorithmRunner<MatrixPair, double[]>(
                 new MatrixMultiplicationAlgorithm(), AlgorithmCategory.Cubic, 400,
                 (n, m) =>
                 {
-                    var cols = m ?? n; // если m не задан явно, считаем квадратный случай n == m
+                    var cols = m ?? n;
                     return new MatrixPair(matrixGenerator.Generate(n, cols), matrixGenerator.Generate(cols, n));
                 },
                 isMatrix: true),
 
-            // ---- Часть III: индивидуальное задание (custom, точка расширения) ----
+            // ---- Часть III: единственный пользовательский алгоритм ----
             new TimedAlgorithmRunner<int[], int[]>(
                 new HanSortAlgorithm(), AlgorithmCategory.Linear, 1_000_000,
                 (n, _) => integerVectorGenerator.Generate(n)),
@@ -106,6 +98,6 @@ public sealed class AlgorithmRegistry
         return runner;
     }
 
-    /// <summary>Основание x генерируется в [1.0, 2.0) — избегает переполнения double даже при n до 1000.</summary>
+    /// <summary>Основание x генерируется в [1.0, 2.0), чтобы избежать переполнения double при n до 1000.</summary>
     private PowerInput RandomPowerInput(int n) => new(1.0 + _random.NextDouble(), n);
 }
